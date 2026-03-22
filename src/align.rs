@@ -35,7 +35,6 @@ pub struct BEDPE {
     chrom_2_st: Option<u64>,
     chrom_2_end: Option<u64>,
     chrom_2_name: Option<String>,
-    score: TraceOp,
 }
 
 impl BEDPE {
@@ -57,22 +56,20 @@ impl BEDPE {
             }
             (Some(chrom_1), None) => {
                 format!(
-                    "{}\t{}\t{}\t.\t.\t.\t{}~.\t{:?}",
+                    "{}\t{}\t{}\t.\t.\t.\t{}~.\tDeletion",
                     chrom_1,
                     self.chrom_1_st.as_ref().unwrap(),
                     self.chrom_1_end.as_ref().unwrap(),
                     self.chrom_1_name.as_ref().unwrap(),
-                    self.score,
                 )
             },
             (None, Some(chrom_2)) => {
                 format!(
-                    ".\t.\t.\t{}\t{}\t{}\t.~{}\t{:?}",
+                    ".\t.\t.\t{}\t{}\t{}\t.~{}\tInsertion",
                     chrom_2,
                     self.chrom_2_st.as_ref().unwrap(),
                     self.chrom_2_end.as_ref().unwrap(),
                     self.chrom_2_name.as_ref().unwrap(),
-                    self.score,
                 )
             },
             (None, None) => todo!(),
@@ -272,7 +269,6 @@ pub fn needleman_wuncsh_affine(
                 chrom_2_st: Some(query.st),
                 chrom_2_end: Some(query.end),
                 chrom_2_name: Some(query.name.to_owned()),
-                score: trace.op,
             },
             (Some(target), None) => BEDPE {
                 chrom_1: Some(target.chrom.to_owned()),
@@ -283,7 +279,6 @@ pub fn needleman_wuncsh_affine(
                 chrom_2_st: None,
                 chrom_2_end: None,
                 chrom_2_name: None,
-                score: trace.op,
             },
             (None, Some(query)) => BEDPE {
                 chrom_1: None,
@@ -294,7 +289,6 @@ pub fn needleman_wuncsh_affine(
                 chrom_2_st: Some(query.st),
                 chrom_2_end: Some(query.end),
                 chrom_2_name: Some(query.name.to_owned()),
-                score: trace.op,
             },
             (None, None) => unreachable!(),
         };
@@ -327,8 +321,8 @@ mod test {
 
     #[test]
     fn test_global() {
-        let t = PathBuf::from("test\\data\\HG008-N_v6.3_chr7_hap2_57312660-64850688_stv.bed.gz");
-        let q = PathBuf::from("test\\data\\HG008-T_v3.2_chr6_chr7_chr11_hap2_60228206-67527215_stv.bed.gz");
+        let t = PathBuf::from("test/data/input/HG008-N_v6.3_chr7_hap2_57312660-64850688_stv.bed.gz");
+        let q = PathBuf::from("test/data/input/HG008-T_v3.2_chr6_chr7_chr11_hap2_60228206-67527215_stv.bed.gz");
         let rec_t = read_bed(&t, None).unwrap();
         let rec_q = read_bed(&q, None).unwrap();
         needleman_wuncsh_affine(&rec_t, &rec_q, 2.0, -1.0, -4.0, -1.0);

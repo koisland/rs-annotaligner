@@ -1,7 +1,5 @@
 use std::{
-    fs::File,
-    io::{BufRead, BufReader, BufWriter, Write, stdout},
-    num::NonZeroUsize, path::PathBuf,
+    ffi::OsStr, fs::File, io::{BufRead, BufReader, BufWriter, Write, stdout}, num::NonZeroUsize, path::PathBuf
 };
 use flate2::read::MultiGzDecoder;
 
@@ -22,7 +20,7 @@ pub struct BED4 {
 
 pub fn read_bed(path: &PathBuf, col_index: Option<NonZeroUsize>) -> eyre::Result<Vec<BED4>> {
     let fh = File::open(path)?;
-    let reader = if path.ends_with("gz") {
+    let reader = if path.extension() == Some(OsStr::new("gz")) {
         Box::new(BufReader::new(MultiGzDecoder::new(fh))) as Box<dyn BufRead>
     } else {
         Box::new(BufReader::new(fh))
@@ -75,7 +73,7 @@ mod test {
     #[test]
     fn test_read_bed() {
         let res = read_bed(
-            &PathBuf::from("test/data/HG008-N_v6.3_chr7_hap2_57312660-64850688.bed.gz"),
+            &PathBuf::from("test/data/input/HG008-N_v6.3_chr7_hap2_57312660-64850688.bed.gz"),
             None,
         )
         .unwrap();
