@@ -22,10 +22,10 @@ pub struct BED4 {
 
 pub fn read_bed(path: &PathBuf, col_index: Option<NonZeroUsize>) -> eyre::Result<Vec<BED4>> {
     let fh = File::open(path)?;
-    let reader = if path.ends_with(".gz") {
-        Box::new(BufReader::new(fh)) as Box<dyn BufRead>
+    let reader = if path.ends_with("gz") {
+        Box::new(BufReader::new(MultiGzDecoder::new(fh))) as Box<dyn BufRead>
     } else {
-        Box::new(BufReader::new(MultiGzDecoder::new(fh)))
+        Box::new(BufReader::new(fh))
     };
     let mut rows = Vec::new();
 
