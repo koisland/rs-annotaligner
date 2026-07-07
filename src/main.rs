@@ -4,7 +4,10 @@ mod align;
 mod cli;
 mod io;
 
-use crate::{align::needleman_wuncsh_affine, io::{read_bed, write_bedpe}};
+use crate::{
+    align::needleman_wuncsh_affine,
+    io::{read_bed, write_bedpe},
+};
 
 fn main() -> eyre::Result<()> {
     let args = cli::Cli::parse();
@@ -21,6 +24,6 @@ fn main() -> eyre::Result<()> {
         args.score_gap_ext,
     );
     write_bedpe(&alns, args.outfile)?;
-    
+
     Ok(())
 }

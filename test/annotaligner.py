@@ -18,7 +18,7 @@ import argparse
 import math
 from pathlib import Path
 from typing import List, Tuple, Dict, Optional
-
+import sys
 import pandas as pd
 from tqdm import tqdm
 
@@ -105,27 +105,39 @@ def needleman_wunsch_affine(
                 (X[i - 1][j - 1] + sub_score(ai, bj, match, mismatch), ('X', 1, 1)),
                 (Y[i - 1][j - 1] + sub_score(ai, bj, match, mismatch), ('Y', 1, 1)),
             ]
-            M[i][j], trace_M[i][j] = max(cand_M, key=lambda x: x[0])
+            max_cand_M = max(cand_M, key=lambda x: x[0])
+            M[i][j], trace_M[i][j] = max_cand_M
 
             cand_X = [
                 (M[i - 1][j] + gap_open + gap_ext, ('M', 1, 0)),  # open
                 (X[i - 1][j] + gap_ext,           ('X', 1, 0)),  # extend
             ]
-            X[i][j], trace_X[i][j] = max(cand_X, key=lambda x: x[0])
+            max_cand_X = max(cand_X, key=lambda x: x[0])
+            X[i][j], trace_X[i][j] = max_cand_X
 
             cand_Y = [
                 (M[i][j - 1] + gap_open + gap_ext, ('M', 0, 1)),  # open
                 (Y[i][j - 1] + gap_ext,           ('Y', 0, 1)),  # extend
             ]
-            Y[i][j], trace_Y[i][j] = max(cand_Y, key=lambda x: x[0])
+            max_cand_Y = max(cand_Y, key=lambda x: x[0])
+            Y[i][j], trace_Y[i][j] = max_cand_Y
+
+            # print(f"({i}, {j})\n\t{max_cand_M}\n\t\t{cand_M}\n\t{max_cand_X}\n\t\t{cand_X}\n\t{max_cand_Y}\n\t\t{cand_Y}", file=sys.stderr)
 
     # End state
     end_scores = [(M[n][m], 'M'), (X[n][m], 'X'), (Y[n][m], 'Y')]
     _, state = max(end_scores, key=lambda x: x[0])
+    # print(f"({n}, {m})\n\t{state}\n\t\t{end_scores}", file=sys.stderr)
 
     # Traceback
     i, j = n, m
     aln1, aln2 = [], []
+    # for i, r in enumerate(trace_M):
+    #     print(f"M{i}: {r}", file=sys.stderr)
+    # for i, r in enumerate(trace_X):
+    #     print(f"X{i}: {r}", file=sys.stderr)
+    # for i, r in enumerate(trace_Y):
+    #     print(f"Y{i}: {r}", file=sys.stderr)
     while i > 0 or j > 0:
         if state == 'M':
             prev_state, di, dj = trace_M[i][j]
@@ -138,6 +150,7 @@ def needleman_wunsch_affine(
             aln1.append('-');          aln2.append(seq2[j - 1])
         else:
             raise RuntimeError("Invalid state in traceback.")
+        # print(f"({i}, {j}) ({prev_state}, {di}, {dj})", file=sys.stderr)
         i -= di; j -= dj; state = prev_state
 
     aln1.reverse(); aln2.reverse()

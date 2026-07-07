@@ -1,7 +1,11 @@
-use std::{
-    ffi::OsStr, fs::File, io::{BufRead, BufReader, BufWriter, Write, stdout}, num::NonZeroUsize, path::PathBuf
-};
 use flate2::read::MultiGzDecoder;
+use std::{
+    ffi::OsStr,
+    fs::File,
+    io::{BufRead, BufReader, BufWriter, Write, stdout},
+    num::NonZeroUsize,
+    path::PathBuf,
+};
 
 use eyre::bail;
 use itertools::Itertools;
