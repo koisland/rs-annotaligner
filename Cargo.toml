@@ -9,3 +9,9 @@ eyre = "0.6.12"
 flate2 = "1.1.9"
 itertools = "0.14.0"
 tqdm = "0.8.0"
+
+[lints.clippy]
+upper_case_acronyms = "allow"
+
+[lints.rust]
+non_snake_case = "allow"

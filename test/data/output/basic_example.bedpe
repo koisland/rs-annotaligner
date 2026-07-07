@@ -1,0 +1,9 @@
+chr1	1	2	chr1	1	2	And~And	Match
+chr1	2	3	chr1	2	3	Bow~Bow	Match
+chr1	3	4	chr1	3	4	Cow~Cow	Match
+chr1	4	5	chr1	4	5	Anger~Zed	Mismatch
+chr1	5	6	chr1	5	6	Anger~Zed	Mismatch
+chr1	6	7	chr1	6	7	Creek~Creek	Match
+chr1	7	8	chr1	7	8	Bag~Bag	Match
+chr1	8	9	.	.	.	Banana~.	Deletion
+chr1	9	10	chr1	8	9	Aww~Bag	Mismatch

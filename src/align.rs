@@ -26,16 +26,16 @@ impl Trace {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BEDPE {
-    chrom_1: Option<String>,
-    chrom_1_st: Option<u64>,
-    chrom_1_end: Option<u64>,
-    chrom_1_name: Option<String>,
-    chrom_2: Option<String>,
-    chrom_2_st: Option<u64>,
-    chrom_2_end: Option<u64>,
-    chrom_2_name: Option<String>,
+    pub chrom_1: Option<String>,
+    pub chrom_1_st: Option<u64>,
+    pub chrom_1_end: Option<u64>,
+    pub chrom_1_name: Option<String>,
+    pub chrom_2: Option<String>,
+    pub chrom_2_st: Option<u64>,
+    pub chrom_2_end: Option<u64>,
+    pub chrom_2_name: Option<String>,
 }
 
 impl BEDPE {
@@ -165,18 +165,9 @@ pub fn needleman_wuncsh_affine(
             // q1    *
             // q2
             let cand_M = [
-                (
-                    Y[i - 1][j - 1] + sub_score,
-                    Trace::new(TraceOp::Y, 1, 1),
-                ),
-                (
-                    X[i - 1][j - 1] + sub_score,
-                    Trace::new(TraceOp::X, 1, 1),
-                ),
-                (
-                    M[i - 1][j - 1] + sub_score,
-                    Trace::new(TraceOp::M, 1, 1),
-                ),
+                (Y[i - 1][j - 1] + sub_score, Trace::new(TraceOp::Y, 1, 1)),
+                (X[i - 1][j - 1] + sub_score, Trace::new(TraceOp::X, 1, 1)),
+                (M[i - 1][j - 1] + sub_score, Trace::new(TraceOp::M, 1, 1)),
             ];
             let max_cand_M = cand_M
                 .into_iter()
@@ -192,10 +183,7 @@ pub fn needleman_wuncsh_affine(
             // q2
             let cand_X = [
                 // Extend
-                (
-                    X[i - 1][j] + score_gap_ext,
-                    Trace::new(TraceOp::X, 1, 0),
-                ),
+                (X[i - 1][j] + score_gap_ext, Trace::new(TraceOp::X, 1, 0)),
                 // Open
                 (
                     M[i - 1][j] + score_gap_open + score_gap_ext,
@@ -216,10 +204,7 @@ pub fn needleman_wuncsh_affine(
             // q2
             let cand_Y = [
                 // Extend
-                (
-                    Y[i][j - 1] + score_gap_ext,
-                    Trace::new(TraceOp::Y, 0, 1),
-                ),
+                (Y[i][j - 1] + score_gap_ext, Trace::new(TraceOp::Y, 0, 1)),
                 // Open
                 (
                     M[i][j - 1] + score_gap_open + score_gap_ext,
@@ -233,7 +218,7 @@ pub fn needleman_wuncsh_affine(
                 .unwrap();
             Y[i][j] = max_cand_Y.0;
             trace_Y[i][j] = Some(max_cand_Y.1);
-            
+
             // eprintln!(
             //     "({i}, {j})\n\t{:?}\n\t\t{:?}\n\t{:?}\n\t\t{:?}\n\t{:?}\n\t\t{:?}",
             //     max_cand_M, cand_M, max_cand_X, cand_X, max_cand_Y, cand_Y
@@ -319,152 +304,57 @@ pub fn needleman_wuncsh_affine(
     alns
 }
 
-pub fn smith_waterman_affine(
-    bed_target: &[BED4],
-    bed_query: &[BED4],
-    score_match: f32,
-    score_mismatch: f32,
-    score_gap_open: f32,
-    score_gap_ext: f32,
+pub fn _smith_waterman_affine(
+    _bed_target: &[BED4],
+    _bed_query: &[BED4],
+    _score_match: f32,
+    _score_mismatch: f32,
+    _score_gap_open: f32,
+    _score_gap_ext: f32,
 ) {
-    // https://github.com/ianneidel/affine-smith-waterman/blob/main/smithwaterman/hw1.py
+    // https://informatika.stei.itb.ac.id/~rinaldi.munir/Stmik/2024-2025/Makalah2025/Makalah-IF2211-Strategi-Algoritma-2025%20(98).pdf
+    // https://github.com/varel183/Makalah_STIMA_13523008/blob/main/src/main.py
     todo!()
 }
 
 #[cfg(test)]
 mod test {
-    use std::path::PathBuf;
-
     use crate::{
         align::needleman_wuncsh_affine,
-        io::{BED4, read_bed},
+        io::{read_bed4, read_bedpe},
     };
+    use std::path::PathBuf;
+
+    const INPUT_DIR: &str = "test/data/input";
+    const EXP_DIR: &str = "test/data/output";
 
     #[test]
     fn test_global() {
         let t =
-            PathBuf::from("test/data/input/HG008-N_v6.3_chr7_hap2_57312660-64850688_stv.bed.gz");
-        let q = PathBuf::from(
-            "test/data/input/HG008-T_v3.2_chr6_chr7_chr11_hap2_60228206-67527215_stv.bed.gz",
-        );
-        let rec_t = read_bed(&t, None).unwrap();
-        let rec_q = read_bed(&q, None).unwrap();
-        needleman_wuncsh_affine(&rec_t, &rec_q, 2.0, -1.0, -4.0, -1.0);
+            PathBuf::from(INPUT_DIR).join("HG008-N_v6.3_chr7_hap2_57312660-64850688_stv.bed.gz");
+        let q = PathBuf::from(INPUT_DIR)
+            .join("HG008-T_v3.2_chr6_chr7_chr11_hap2_60228206-67527215_stv.bed.gz");
+        let exp = PathBuf::from(EXP_DIR).join("HG008-TN_chr6_chr7_fusion.bed.gz");
+
+        let rec_t = read_bed4(&t, None).unwrap();
+        let rec_q = read_bed4(&q, None).unwrap();
+
+        let res = needleman_wuncsh_affine(&rec_t, &rec_q, 2.0, -1.0, -4.0, -1.0);
+        let exp_res = read_bedpe(&exp).unwrap();
+        assert_eq!(res, exp_res)
     }
 
     #[test]
     fn test_global_small() {
-        let rec_t = vec![
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 1,
-                end: 2,
-                name: String::from("A"),
-            },
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 2,
-                end: 3,
-                name: String::from("B"),
-            },
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 3,
-                end: 4,
-                name: String::from("C"),
-            },
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 4,
-                end: 5,
-                name: String::from("A"),
-            },
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 5,
-                end: 6,
-                name: String::from("A"),
-            },
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 6,
-                end: 7,
-                name: String::from("C"),
-            },
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 7,
-                end: 8,
-                name: String::from("B"),
-            },
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 8,
-                end: 9,
-                name: String::from("B"),
-            },
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 9,
-                end: 10,
-                name: String::from("A"),
-            },
-        ];
-        let rec_q = vec![
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 1,
-                end: 2,
-                name: String::from("A"),
-            }, // o
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 2,
-                end: 3,
-                name: String::from("B"),
-            }, // o
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 3,
-                end: 4,
-                name: String::from("C"),
-            }, // o
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 4,
-                end: 5,
-                name: String::from("Z"),
-            }, // x
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 5,
-                end: 6,
-                name: String::from("Z"),
-            }, // x
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 6,
-                end: 7,
-                name: String::from("C"),
-            }, // o
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 7,
-                end: 8,
-                name: String::from("B"),
-            }, // o
-            BED4 {
-                chrom: String::from("chr1"),
-                st: 8,
-                end: 9,
-                name: String::from("B"),
-            }, // o
-               // x
-        ];
+        let t = PathBuf::from(INPUT_DIR).join("target.bed");
+        let q = PathBuf::from(INPUT_DIR).join("query.bed");
+        let exp = PathBuf::from(EXP_DIR).join("basic_example.bedpe");
+
+        let rec_t = read_bed4(&t, None).unwrap();
+        let rec_q = read_bed4(&q, None).unwrap();
 
         let res = needleman_wuncsh_affine(&rec_t, &rec_q, 2.0, -1.0, -4.0, -1.0);
-        for line in res {
-            println!("{}", line.as_row())
-        }
+        let exp_res = read_bedpe(&exp).unwrap();
+        assert_eq!(res, exp_res)
     }
 }

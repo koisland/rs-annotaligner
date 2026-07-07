@@ -6,14 +6,14 @@ mod io;
 
 use crate::{
     align::needleman_wuncsh_affine,
-    io::{read_bed, write_bedpe},
+    io::{read_bed4, write_bedpe},
 };
 
 fn main() -> eyre::Result<()> {
     let args = cli::Cli::parse();
 
-    let bed_target = read_bed(&args.infile_target, Some(args.label_col))?;
-    let bed_query = read_bed(&args.infile_query, Some(args.label_col))?;
+    let bed_target = read_bed4(&args.infile_target, Some(args.label_col))?;
+    let bed_query = read_bed4(&args.infile_query, Some(args.label_col))?;
 
     let alns = needleman_wuncsh_affine(
         &bed_target,
@@ -23,7 +23,7 @@ fn main() -> eyre::Result<()> {
         args.score_gap_open,
         args.score_gap_ext,
     );
-    write_bedpe(&alns, args.outfile)?;
+    write_bedpe(&alns, args.outfile.as_deref())?;
 
     Ok(())
 }
