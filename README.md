@@ -3,7 +3,7 @@ Rust port of [`annotaligner`](https://github.com/fedorrik/annotaligner) with add
 
 ## Why?
 * Learning exercise. Never implemented basic alignment algorithms myself.
-* Outputs of `annotaligner` could be better (no coordinates). BEDPE or paf.
+* Outputs of `annotaligner` could be better (no coordinates). Ideally shoule be [`BEDPE`](https://bedtools.readthedocs.io/en/latest/content/general-usage.html) or [`paf`](https://github.com/lh3/miniasm/blob/master/PAF.md).
 * Rust for performance and correctness.
 
 ## Usage
@@ -13,51 +13,43 @@ Clone repo.
 git clone https://github.com/koisland/rs-annotaligner --recursive
 ```
 
-Compile.
+Compile with Rust.
 ```bash
 cargo build --release
 ```
 
 ### BEDPE
+Global alignment with affine gap penalties.
 ```bash
 ./target/release/rs-annotaligner \
     -t test/data/input/target.bed \
-    -q test/data/input/query.bed
+    -q test/data/input/query.bed \
+    -a global # Or local
 ```
 
 <table>
     <tr>
         <td>Target</td>
         <td>Query</td>
-        <td>Output</td>
+        <td>Output (Global)</td>
+        <td>Output (Local)</td>
     </tr>
     <tr>
 <td>
 
 ```
-chr1	1	2	And
-chr1	2	3	Bow
-chr1	3	4	Cow
-chr1	4	5	Anger
-chr1	5	6	Anger
-chr1	6	7	Creek
-chr1	7	8	Bag
-chr1	8	9	Banana
-chr1	9	10	Aww
-```
-
-</td>
-<td>
-
-```
-chr1	1	2	And
-chr1	2	3	Bow
-chr1	3	4	Cow
-chr1	4	5	Zed
-chr1	5	6	Zed
-chr1	6	7	Creek
-chr1	7	8	Bag
-chr1	8	9	Bag
+chr1	1	2	L1
+chr1	2	3	G1
+chr1	3	4	P1
+chr1	4	5	S1
+chr1	5	6	S1
+chr1	7	8	K1
+chr1	8	9	Q1
+chr1	9	10	T1
+chr1	10	11	G1
+chr1	11	12	K1
+chr1	12	13	G1
+chr1	13	14	S1
 
 ```
 
@@ -65,18 +57,49 @@ chr1	8	9	Bag
 <td>
 
 ```
-chr1	1	2	chr1	1	2	And~And	Match
-chr1	2	3	chr1	2	3	Bow~Bow	Match
-chr1	3	4	chr1	3	4	Cow~Cow	Match
-chr1	4	5	chr1	4	5	Anger~Zed	Mismatch
-chr1	5	6	chr1	5	6	Anger~Zed	Mismatch
-chr1	6	7	chr1	6	7	Creek~Creek	Match
-chr1	7	8	chr1	7	8	Bag~Bag	Match
-chr1	8	9	.	.	.	Banana~.	Deletion
-chr1	9	10	chr1	8	9	Aww~Bag	Mismatch
+chr1	1	2	L1
+chr1	2	3	N1
+chr1	4	5	I1
+chr1	5	6	T1
+chr1	7	8	K1
+chr1	8	9	S1
+chr1	9	10	A1
+chr1	10	11	G1
+chr1	11	12	K1
+chr1	12	13	G1
+chr1	13	14	A1
 ```
 
 </td>
+<td>
+
+```
+chr1	1	2	chr1	1	2	L1~L1	Match
+chr1	2	3	.	.	.	G1~.	Deletion
+chr1	3	4	chr1	2	3	P1~N1	Mismatch
+chr1	4	5	chr1	4	5	S1~I1	Mismatch
+chr1	5	6	chr1	5	6	S1~T1	Mismatch
+chr1	7	8	chr1	7	8	K1~K1	Match
+chr1	8	9	chr1	8	9	Q1~S1	Mismatch
+chr1	9	10	chr1	9	10	T1~A1	Mismatch
+chr1	10	11	chr1	10	11	G1~G1	Match
+chr1	11	12	chr1	11	12	K1~K1	Match
+chr1	12	13	chr1	12	13	G1~G1	Match
+chr1	13	14	chr1	13	14	S1~A1	Mismatch
+```
+
+</td>
+
+<td>
+
+```
+chr1	10	11	chr1	10	11	G1~G1	Match
+chr1	11	12	chr1	11	12	K1~K1	Match
+chr1	12	13	chr1	12	13	G1~G1	Match
+```
+
+</td>
+
 </table>
 
 ### PAF
@@ -85,6 +108,15 @@ TODO
 ```
 
 ## Test
+
+### Suite
+Test suite and all examples.
+```bash
+cargo test --release
+```
+
+### Against annotaligner with HG008 example
+Chromosomal fusion of chr6 and chr7 in HG008-T.
 ```bash
 cargo run --release -- \
     -t test/data/input/HG008-N_v6.3_chr7_hap2_57312660-64850688_stv.bed.gz \
@@ -100,7 +132,7 @@ python test/annotaligner/annotaligner.py \
 
 ## TODO
 * [x] Gzip input
-* [ ] Smith-Waterman
+* [x] Smith-Waterman
 * [ ] Output as PAF
 * [x] Output as BEDPE
 * [ ] Benchmarks

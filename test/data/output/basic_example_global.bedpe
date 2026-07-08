@@ -1,0 +1,12 @@
+chr1	1	2	chr1	1	2	L1~L1	Match
+chr1	2	3	.	.	.	G1~.	Deletion
+chr1	3	4	chr1	2	3	P1~N1	Mismatch
+chr1	4	5	chr1	4	5	S1~I1	Mismatch
+chr1	5	6	chr1	5	6	S1~T1	Mismatch
+chr1	7	8	chr1	7	8	K1~K1	Match
+chr1	8	9	chr1	8	9	Q1~S1	Mismatch
+chr1	9	10	chr1	9	10	T1~A1	Mismatch
+chr1	10	11	chr1	10	11	G1~G1	Match
+chr1	11	12	chr1	11	12	K1~K1	Match
+chr1	12	13	chr1	12	13	G1~G1	Match
+chr1	13	14	chr1	13	14	S1~A1	Mismatch

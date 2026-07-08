@@ -2,7 +2,7 @@ use clap::Parser;
 
 use std::{num::NonZeroUsize, path::PathBuf};
 
-use crate::io::DEF_NAME_COL;
+use crate::{align::Mode, io::DEF_NAME_COL};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -16,7 +16,7 @@ pub struct Cli {
     /// 1-based index for labels
     #[arg(short = 'c', long, default_value_t = DEF_NAME_COL)]
     pub label_col: NonZeroUsize,
-    /// Output BED file.
+    /// Output BEDPE file.
     #[arg(short = 'o', long)]
     pub outfile: Option<PathBuf>,
     /// Match score
@@ -31,4 +31,8 @@ pub struct Cli {
     /// Gap-extension penalty
     #[arg(short = 'e', long, default_value_t = -1.0)]
     pub score_gap_ext: f32,
+    /// Alignment mode. Either global or local.
+    /// Local only returns the highest scoring alignment.
+    #[arg(short = 'a', long, default_value = "global")]
+    pub mode: Mode,
 }
