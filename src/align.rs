@@ -535,14 +535,13 @@ mod test {
     fn test_local_small() {
         let t = PathBuf::from(INPUT_DIR).join("target_local.bed");
         let q = PathBuf::from(INPUT_DIR).join("query_local.bed");
-        // let exp = PathBuf::from(EXP_DIR).join("basic_example.bedpe");
+        let exp = PathBuf::from(EXP_DIR).join("basic_example_local.bedpe");
 
         let rec_t = read_bed4(&t, None).unwrap();
         let rec_q = read_bed4(&q, None).unwrap();
 
         let res = smith_waterman_affine(&rec_t, &rec_q, 2.0, -1.0, -4.0, -1.0);
-        for row in res {
-            eprintln!("{}", row.as_row())
-        }
+        let exp_res = read_bedpe(&exp).unwrap();
+        assert_eq!(res, exp_res)
     }
 }

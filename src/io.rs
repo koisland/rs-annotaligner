@@ -169,14 +169,14 @@ mod test {
     #[test]
     fn test_read_bed4() {
         let infile = Path::new(INFILE);
-        let res = read_bed4(&infile, None).unwrap();
+        let res = read_bed4(infile, None).unwrap();
         assert_eq!(res, expected())
     }
 
     #[test]
     fn test_read_bed4_change_col() {
         let infile = Path::new(INFILE);
-        let res = read_bed4(&infile, Some(5.try_into().unwrap())).unwrap();
+        let res = read_bed4(infile, Some(5.try_into().unwrap())).unwrap();
 
         // 4th column is capitalized while 5th is not.
         let expected: Vec<BED4> = expected()
