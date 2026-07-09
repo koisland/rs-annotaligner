@@ -2,15 +2,13 @@ use flate2::read::MultiGzDecoder;
 use std::{
     ffi::OsStr,
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Write, stdout},
+    io::{BufRead, BufReader},
     num::NonZeroUsize,
     path::Path,
 };
 
 use eyre::bail;
 use itertools::Itertools;
-
-use crate::align::BEDPE;
 
 pub const DEF_NAME_COL: NonZeroUsize = NonZeroUsize::new(4).unwrap();
 
@@ -58,88 +56,11 @@ pub fn read_bed4(path: &Path, col_index: Option<NonZeroUsize>) -> eyre::Result<V
     Ok(rows)
 }
 
-#[allow(dead_code)]
-/// Read [BEDPE] file.
-pub fn read_bedpe(path: &Path) -> eyre::Result<Vec<BEDPE>> {
-    let fh = File::open(path)?;
-    let reader = if path.extension().is_some_and(|ext| ext == OsStr::new("gz")) {
-        Box::new(BufReader::new(MultiGzDecoder::new(fh))) as Box<dyn BufRead>
-    } else {
-        Box::new(BufReader::new(fh))
-    };
-
-    let mut records = vec![];
-    for line in reader.lines() {
-        let line = line?;
-        let Some((
-            chrom_1,
-            chrom_1_st,
-            chrom_1_end,
-            chrom_2,
-            chrom_2_st,
-            chrom_2_end,
-            name,
-            _score,
-        )) = line.splitn(8, '\t').collect_tuple()
-        else {
-            bail!("Invalid line {line}")
-        };
-        let Some((chrom_1_name, chrom_2_name)) = name.split('~').collect_tuple() else {
-            bail!("{line} has name column that contains more than one ~")
-        };
-        let (chrom_1, chrom_1_st, chrom_1_end, chrom_1_name) = if chrom_1 == "." {
-            (None, None, None, None)
-        } else {
-            (
-                Some(chrom_1.to_owned()),
-                Some(chrom_1_st.parse()?),
-                Some(chrom_1_end.parse()?),
-                Some(chrom_1_name.parse()?),
-            )
-        };
-        let (chrom_2, chrom_2_st, chrom_2_end, chrom_2_name) = if chrom_2 == "." {
-            (None, None, None, None)
-        } else {
-            (
-                Some(chrom_2.to_owned()),
-                Some(chrom_2_st.parse()?),
-                Some(chrom_2_end.parse()?),
-                Some(chrom_2_name.parse()?),
-            )
-        };
-        records.push(BEDPE {
-            chrom_1,
-            chrom_1_st,
-            chrom_1_end,
-            chrom_1_name,
-            chrom_2,
-            chrom_2_st,
-            chrom_2_end,
-            chrom_2_name,
-        });
-    }
-
-    Ok(records)
-}
-
-/// Write [BEDPE] alignments to a file or stdout.
-pub fn write_bedpe(alns: &[BEDPE], path: Option<&Path>) -> eyre::Result<()> {
-    let mut writer = if let Some(outfile) = path {
-        Box::new(BufWriter::new(File::create(outfile)?)) as Box<dyn Write>
-    } else {
-        Box::new(BufWriter::new(stdout()))
-    };
-    for record in alns {
-        writeln!(&mut writer, "{}", record.as_row())?;
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod test {
     use std::path::Path;
 
-    use crate::io::{BED4, read_bed4};
+    use super::{BED4, read_bed4};
 
     const INFILE: &str = "test/data/input/alternate_col.bed";
 

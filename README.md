@@ -5,7 +5,7 @@ Rust port of [`annotaligner`](https://github.com/fedorrik/annotaligner) with add
 
 ## Why?
 * Learning exercise. Never implemented basic alignment algorithms myself.
-* Outputs of `annotaligner` could be better (no coordinates). Ideally shoule be [`BEDPE`](https://bedtools.readthedocs.io/en/latest/content/general-usage.html) or [`paf`](https://github.com/lh3/miniasm/blob/master/PAF.md).
+* Outputs of `annotaligner` could be better (no coordinates). Ideally should be [`BEDPE`](https://bedtools.readthedocs.io/en/latest/content/general-usage.html) or [`PAF`](https://github.com/lh3/miniasm/blob/master/PAF.md).
 * Rust for performance and correctness.
 
 ## Usage

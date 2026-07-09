@@ -5,8 +5,8 @@ mod cli;
 mod io;
 
 use crate::{
-    align::{needleman_wuncsh_affine, smith_waterman_affine},
-    io::{read_bed4, write_bedpe},
+    align::{global::needleman_wuncsh_affine, local::smith_waterman_affine},
+    io::{bed4::read_bed4, bedpe::write_bedpe},
 };
 
 fn main() -> eyre::Result<()> {

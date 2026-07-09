@@ -2,7 +2,7 @@ use clap::Parser;
 
 use std::{num::NonZeroUsize, path::PathBuf};
 
-use crate::{align::Mode, io::DEF_NAME_COL};
+use crate::{align::Mode, io::bed4::DEF_NAME_COL};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
