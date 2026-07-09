@@ -1,4 +1,6 @@
 # rs-annotaligner
+[![CI](https://github.com/koisland/rs-annotaligner/actions/workflows/ci.yaml/badge.svg)](https://github.com/koisland/rs-annotaligner/actions/workflows/ci.yaml)
+
 Rust port of [`annotaligner`](https://github.com/fedorrik/annotaligner) with additional features.
 
 ## Why?
@@ -19,7 +21,7 @@ cargo build --release
 ```
 
 ### BEDPE
-Global alignment with affine gap penalties.
+Global or local alignment with affine gap penalties.
 ```bash
 ./target/release/rs-annotaligner \
     -t test/data/input/target.bed \
