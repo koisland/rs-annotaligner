@@ -1,13 +1,12 @@
-use clap::Parser;
-
 mod align;
 mod cli;
 mod io;
 
 use crate::{
     align::{global::needleman_wuncsh_affine, local::smith_waterman_affine},
-    io::{bed4::read_bed4, bedpe::write_bedpe},
+    io::{align::write_alignments, bed4::read_bed4},
 };
+use clap::Parser;
 
 fn main() -> eyre::Result<()> {
     let args = cli::Cli::parse();
@@ -16,14 +15,18 @@ fn main() -> eyre::Result<()> {
     let bed_query = read_bed4(&args.infile_query, Some(args.label_col))?;
 
     let alns = match args.mode {
-        align::Mode::Global => needleman_wuncsh_affine(
-            &bed_target,
-            &bed_query,
-            args.score_match,
-            args.score_mismatch,
-            args.score_gap_open,
-            args.score_gap_ext,
-        ),
+        align::Mode::Global => {
+            let aln = needleman_wuncsh_affine(
+                &bed_target,
+                &bed_query,
+                args.score_match,
+                args.score_mismatch,
+                args.score_gap_open,
+                args.score_gap_ext,
+            )?;
+            // Only generates best for now?
+            vec![aln]
+        }
         align::Mode::Local => smith_waterman_affine(
             &bed_target,
             &bed_query,
@@ -31,9 +34,10 @@ fn main() -> eyre::Result<()> {
             args.score_mismatch,
             args.score_gap_open,
             args.score_gap_ext,
-        ),
+            args.minimum_aln_score,
+        )?,
     };
-    write_bedpe(&alns, args.outfile.as_deref())?;
+    write_alignments(alns, args.outfile_type, args.outfile.as_deref())?;
 
     Ok(())
 }

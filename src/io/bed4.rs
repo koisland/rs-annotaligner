@@ -35,6 +35,9 @@ pub fn read_bed4(path: &Path, col_index: Option<NonZeroUsize>) -> eyre::Result<V
     let skip_cols = col_index.unwrap_or(DEF_NAME_COL).get().saturating_sub(4);
     for line in reader.lines() {
         let line = line?;
+        if line.starts_with('#') {
+            continue;
+        }
         let Some((chrom, st, end, other)) = line.splitn(4, '\t').collect_tuple() else {
             bail!("Invalid line {line}")
         };

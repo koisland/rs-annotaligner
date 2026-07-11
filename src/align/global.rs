@@ -1,8 +1,12 @@
+use ordered_float::OrderedFloat;
+
 use crate::{
-    align::{Trace, TraceOp},
+    align::{CigarOp, Trace, TraceOp},
+    io::align::Alignment,
     io::{bed4::BED4, bedpe::BEDPE},
 };
 
+/// Global alignment with affine gap penalties.
 pub fn needleman_wuncsh_affine(
     bed_target: &[BED4],
     bed_query: &[BED4],
@@ -10,17 +14,14 @@ pub fn needleman_wuncsh_affine(
     score_mismatch: f32,
     score_gap_open: f32,
     score_gap_ext: f32,
-) -> Vec<BEDPE> {
-    /*
-    Global alignment with affine gap penalties.
-    Three DP matrices:
-      M[i][j] — best score ending with a match/mismatch at (i,j)
-      X[i][j] — best score ending with a gap in seq2 (insert in seq1) at (i,j)
-      Y[i][j] — best score ending with a gap in seq1 (delete from seq1) at (i,j)
-    */
+) -> eyre::Result<Alignment> {
     let n = bed_target.len();
     let m = bed_query.len();
 
+    // Three DP matrices:
+    //   M[i][j] — best score ending with a match/mismatch at (i,j)
+    //   X[i][j] — best score ending with a gap in seq2 (insert in seq1) at (i,j)
+    //   Y[i][j] — best score ending with a gap in seq1 (delete from seq1) at (i,j)
     let mut M = vec![vec![f32::NEG_INFINITY; m + 1]; n + 1];
     let mut X = vec![vec![f32::NEG_INFINITY; m + 1]; n + 1];
     let mut Y = vec![vec![f32::NEG_INFINITY; m + 1]; n + 1];
@@ -31,6 +32,7 @@ pub fn needleman_wuncsh_affine(
 
     // Cast bool to usize and index rather than if statement.
     let match_mismatch_score = [score_mismatch, score_match];
+    let ops = [CigarOp::Mismatch, CigarOp::Match];
 
     // Init top-left corner of mtx
     //    t0 t1 t2
@@ -148,12 +150,13 @@ pub fn needleman_wuncsh_affine(
     }
 
     // End state
+    // TODO: Can pull more alignments if desired.
     let end_scores = [
         (Y[n][m], TraceOp::Y),
         (X[n][m], TraceOp::X),
         (M[n][m], TraceOp::M),
     ];
-    let (_, mut state) = end_scores
+    let (score, mut state) = end_scores
         .into_iter()
         .max_by(|a, b| a.0.total_cmp(&b.0))
         .unwrap();
@@ -183,16 +186,20 @@ pub fn needleman_wuncsh_affine(
         };
         // eprintln!("({i}, {j}) {trace:?}");
         let bedpe = match (aln_target, aln_query) {
-            (Some(target), Some(query)) => BEDPE {
-                chrom_1: Some(target.chrom.to_owned()),
-                chrom_1_st: Some(target.st),
-                chrom_1_end: Some(target.end),
-                chrom_1_name: Some(target.name.to_owned()),
-                chrom_2: Some(query.chrom.to_owned()),
-                chrom_2_st: Some(query.st),
-                chrom_2_end: Some(query.end),
-                chrom_2_name: Some(query.name.to_owned()),
-            },
+            (Some(target), Some(query)) => {
+                let op = ops[usize::from(target.name == query.name)];
+                BEDPE {
+                    chrom_1: Some(target.chrom.to_owned()),
+                    chrom_1_st: Some(target.st),
+                    chrom_1_end: Some(target.end),
+                    chrom_1_name: Some(target.name.to_owned()),
+                    chrom_2: Some(query.chrom.to_owned()),
+                    chrom_2_st: Some(query.st),
+                    chrom_2_end: Some(query.end),
+                    chrom_2_name: Some(query.name.to_owned()),
+                    op,
+                }
+            }
             (Some(target), None) => BEDPE {
                 chrom_1: Some(target.chrom.to_owned()),
                 chrom_1_st: Some(target.st),
@@ -202,6 +209,7 @@ pub fn needleman_wuncsh_affine(
                 chrom_2_st: None,
                 chrom_2_end: None,
                 chrom_2_name: None,
+                op: CigarOp::Deletion,
             },
             (None, Some(query)) => BEDPE {
                 chrom_1: None,
@@ -212,6 +220,7 @@ pub fn needleman_wuncsh_affine(
                 chrom_2_st: Some(query.st),
                 chrom_2_end: Some(query.end),
                 chrom_2_name: Some(query.name.to_owned()),
+                op: CigarOp::Insertion,
             },
             (None, None) => unreachable!(),
         };
@@ -222,7 +231,7 @@ pub fn needleman_wuncsh_affine(
     }
 
     alns.reverse();
-    alns
+    Alignment::new(alns, OrderedFloat(score))
 }
 
 #[cfg(test)]
@@ -245,9 +254,9 @@ mod test {
         let rec_t = read_bed4(&t, None).unwrap();
         let rec_q = read_bed4(&q, None).unwrap();
 
-        let res = needleman_wuncsh_affine(&rec_t, &rec_q, 2.0, -1.0, -4.0, -1.0);
+        let res = needleman_wuncsh_affine(&rec_t, &rec_q, 2.0, -1.0, -4.0, -1.0).unwrap();
         let exp_res = read_bedpe(&exp).unwrap();
-        assert_eq!(res, exp_res)
+        assert_eq!(res.records, exp_res.records)
     }
 
     #[test]
@@ -259,8 +268,8 @@ mod test {
         let rec_t = read_bed4(&t, None).unwrap();
         let rec_q = read_bed4(&q, None).unwrap();
 
-        let res = needleman_wuncsh_affine(&rec_t, &rec_q, 2.0, -1.0, -4.0, -1.0);
+        let res = needleman_wuncsh_affine(&rec_t, &rec_q, 2.0, -1.0, -4.0, -1.0).unwrap();
         let exp_res = read_bedpe(&exp).unwrap();
-        assert_eq!(res, exp_res)
+        assert_eq!(res.records, exp_res.records)
     }
 }

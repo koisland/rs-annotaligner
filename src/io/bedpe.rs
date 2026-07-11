@@ -1,13 +1,17 @@
 use flate2::read::MultiGzDecoder;
+use ordered_float::OrderedFloat;
 use std::{
     ffi::OsStr,
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Write, stdout},
+    io::{BufRead, BufReader},
     path::Path,
+    str::FromStr,
 };
 
 use eyre::bail;
 use itertools::Itertools;
+
+use crate::{align::CigarOp, io::align::Alignment};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BEDPE {
@@ -19,14 +23,19 @@ pub struct BEDPE {
     pub chrom_2_st: Option<u64>,
     pub chrom_2_end: Option<u64>,
     pub chrom_2_name: Option<String>,
+    pub op: CigarOp,
 }
 
 impl BEDPE {
-    pub fn as_row(&self) -> String {
+    pub fn header() -> &'static str {
+        "#tchrom\ttst\ttend\tqchrom\tqst\tqend\tname\tscore\top\tn_aln"
+    }
+
+    pub fn as_str(&self, score: f32, num: usize) -> String {
         match (&self.chrom_1, &self.chrom_2) {
             (Some(chrom_1), Some(chrom_2)) => {
                 format!(
-                    "{}\t{}\t{}\t{}\t{}\t{}\t{}~{}\t{}",
+                    "{}\t{}\t{}\t{}\t{}\t{}\t{}~{}\t{}\t{:?}\t{}",
                     chrom_1,
                     self.chrom_1_st.as_ref().unwrap(),
                     self.chrom_1_end.as_ref().unwrap(),
@@ -35,29 +44,33 @@ impl BEDPE {
                     self.chrom_2_end.as_ref().unwrap(),
                     self.chrom_1_name.as_ref().unwrap(),
                     self.chrom_2_name.as_ref().unwrap(),
-                    if self.chrom_1_name == self.chrom_2_name {
-                        "Match"
-                    } else {
-                        "Mismatch"
-                    },
+                    score,
+                    self.op,
+                    num
                 )
             }
             (Some(chrom_1), None) => {
                 format!(
-                    "{}\t{}\t{}\t.\t.\t.\t{}~.\tDeletion",
+                    "{}\t{}\t{}\t.\t.\t.\t{}~.\t{}\t{:?}\t{}",
                     chrom_1,
                     self.chrom_1_st.as_ref().unwrap(),
                     self.chrom_1_end.as_ref().unwrap(),
                     self.chrom_1_name.as_ref().unwrap(),
+                    score,
+                    self.op,
+                    num
                 )
             }
             (None, Some(chrom_2)) => {
                 format!(
-                    ".\t.\t.\t{}\t{}\t{}\t.~{}\tInsertion",
+                    ".\t.\t.\t{}\t{}\t{}\t.~{}\t{}\t{:?}\t{}",
                     chrom_2,
                     self.chrom_2_st.as_ref().unwrap(),
                     self.chrom_2_end.as_ref().unwrap(),
                     self.chrom_2_name.as_ref().unwrap(),
+                    score,
+                    self.op,
+                    num
                 )
             }
             (None, None) => todo!(),
@@ -66,18 +79,21 @@ impl BEDPE {
 }
 
 #[allow(dead_code)]
-/// Read [BEDPE] file.
-pub fn read_bedpe(path: &Path) -> eyre::Result<Vec<BEDPE>> {
+/// Read [BEDPE] file for one alignment.
+pub fn read_bedpe(path: &Path) -> eyre::Result<Alignment> {
     let fh = File::open(path)?;
     let reader = if path.extension().is_some_and(|ext| ext == OsStr::new("gz")) {
         Box::new(BufReader::new(MultiGzDecoder::new(fh))) as Box<dyn BufRead>
     } else {
         Box::new(BufReader::new(fh))
     };
-
     let mut records = vec![];
+    let mut aln_score: Option<f32> = None;
     for line in reader.lines() {
         let line = line?;
+        if line.starts_with('#') {
+            continue;
+        }
         let Some((
             chrom_1,
             chrom_1_st,
@@ -86,8 +102,10 @@ pub fn read_bedpe(path: &Path) -> eyre::Result<Vec<BEDPE>> {
             chrom_2_st,
             chrom_2_end,
             name,
-            _score,
-        )) = line.splitn(8, '\t').collect_tuple()
+            score,
+            op,
+            _num,
+        )) = line.splitn(10, '\t').collect_tuple()
         else {
             bail!("Invalid line {line}")
         };
@@ -114,6 +132,12 @@ pub fn read_bedpe(path: &Path) -> eyre::Result<Vec<BEDPE>> {
                 Some(chrom_2_name.parse()?),
             )
         };
+        let score = score.parse::<f32>()?;
+        if aln_score.is_some_and(|s| s != score) {
+            bail!("Different score found in records. BEDPE should represent only one alignment.")
+        } else if aln_score.is_none() {
+            aln_score = Some(score)
+        }
         records.push(BEDPE {
             chrom_1,
             chrom_1_st,
@@ -123,21 +147,9 @@ pub fn read_bedpe(path: &Path) -> eyre::Result<Vec<BEDPE>> {
             chrom_2_st,
             chrom_2_end,
             chrom_2_name,
+            op: CigarOp::from_str(op)?,
         });
     }
 
-    Ok(records)
-}
-
-/// Write [BEDPE] alignments to a file or stdout.
-pub fn write_bedpe(alns: &[BEDPE], path: Option<&Path>) -> eyre::Result<()> {
-    let mut writer = if let Some(outfile) = path {
-        Box::new(BufWriter::new(File::create(outfile)?)) as Box<dyn Write>
-    } else {
-        Box::new(BufWriter::new(stdout()))
-    };
-    for record in alns {
-        writeln!(&mut writer, "{}", record.as_row())?;
-    }
-    Ok(())
+    Alignment::new(records, OrderedFloat(aln_score.unwrap()))
 }

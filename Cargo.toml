@@ -5,9 +5,11 @@ edition = "2024"
 
 [dependencies]
 clap = { version = "4.6.0", features = ["derive"] }
+digits_iterator = "0.1.0"
 eyre = "0.6.12"
 flate2 = "1.1.9"
 itertools = "0.14.0"
+ordered-float = "5.3.0"
 tqdm = "0.8.0"
 
 [lints.clippy]

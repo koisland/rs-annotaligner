@@ -1,3 +1,4 @@
-chr1	10	11	chr1	10	11	G1~G1	Match
-chr1	11	12	chr1	11	12	K1~K1	Match
-chr1	12	13	chr1	12	13	G1~G1	Match
+#tchrom	tst	tend	qchrom	qst	qend	name	score	op	n_aln
+chr1	10	11	chr1	10	11	G1~G1	6	Match	1
+chr1	11	12	chr1	11	12	K1~K1	6	Match	1
+chr1	12	13	chr1	12	13	G1~G1	6	Match	1

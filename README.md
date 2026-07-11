@@ -20,13 +20,18 @@ Compile with Rust.
 cargo build --release
 ```
 
-### BEDPE
+### Alignment
 Global or local alignment with affine gap penalties.
+* Global alignment only outputs best alignment.
+* Local alignment supports multiple alignments.
+
+#### BEDPE
 ```bash
 ./target/release/rs-annotaligner \
     -t test/data/input/target.bed \
     -q test/data/input/query.bed \
-    -a global # Or local
+    -y bedpe \
+    -a global # Or `local`
 ```
 
 <table>
@@ -76,18 +81,19 @@ chr1	13	14	A1
 <td>
 
 ```
-chr1	1	2	chr1	1	2	L1~L1	Match
-chr1	2	3	.	.	.	G1~.	Deletion
-chr1	3	4	chr1	2	3	P1~N1	Mismatch
-chr1	4	5	chr1	4	5	S1~I1	Mismatch
-chr1	5	6	chr1	5	6	S1~T1	Mismatch
-chr1	7	8	chr1	7	8	K1~K1	Match
-chr1	8	9	chr1	8	9	Q1~S1	Mismatch
-chr1	9	10	chr1	9	10	T1~A1	Mismatch
-chr1	10	11	chr1	10	11	G1~G1	Match
-chr1	11	12	chr1	11	12	K1~K1	Match
-chr1	12	13	chr1	12	13	G1~G1	Match
-chr1	13	14	chr1	13	14	S1~A1	Mismatch
+#tchrom	tst	tend	qchrom	qst	qend	name	score	op	n_aln
+chr1	1	2	chr1	1	2	L1~L1	-1	Match	1
+chr1	2	3	.	.	.	G1~.	-1	Deletion	1
+chr1	3	4	chr1	2	3	P1~N1	-1	Mismatch	1
+chr1	4	5	chr1	4	5	S1~I1	-1	Mismatch	1
+chr1	5	6	chr1	5	6	S1~T1	-1	Mismatch	1
+chr1	7	8	chr1	7	8	K1~K1	-1	Match	1
+chr1	8	9	chr1	8	9	Q1~S1	-1	Mismatch	1
+chr1	9	10	chr1	9	10	T1~A1	-1	Mismatch	1
+chr1	10	11	chr1	10	11	G1~G1	-1	Match	1
+chr1	11	12	chr1	11	12	K1~K1	-1	Match	1
+chr1	12	13	chr1	12	13	G1~G1	-1	Match	1
+chr1	13	14	chr1	13	14	S1~A1	-1	Mismatch	1
 ```
 
 </td>
@@ -95,19 +101,102 @@ chr1	13	14	chr1	13	14	S1~A1	Mismatch
 <td>
 
 ```
-chr1	10	11	chr1	10	11	G1~G1	Match
-chr1	11	12	chr1	11	12	K1~K1	Match
-chr1	12	13	chr1	12	13	G1~G1	Match
+#tchrom	tst	tend	qchrom	qst	qend	name	score	op	n_aln
+chr1	10	11	chr1	10	11	G1~G1	6	Match	1
+chr1	11	12	chr1	11	12	K1~K1	6	Match	1
+chr1	12	13	chr1	12	13	G1~G1	6	Match	1
+...
 ```
 
 </td>
 
 </table>
 
-### PAF
+#### PAF
+[Pairwise mApping Format](https://github.com/lh3/miniasm/blob/master/PAF.md#paf-a-pairwise-mapping-format) adds more alignment metadata.
+
+The following tags are added:
+* `cg` - CIGAR string
+* `nr` - Number of aligned annotations (custom)
+* `AS` - DP score
+* `NM` - Number of mismatches/gaps
+* `de` - Gap-compressed identity based on interval lengths.
+* `tg` - Target annotation gap percentage. If aligned over annotation gaps, will be >0.0% (custom)
+* `qg` - Query annotation gap percentage. If aligned over annotation gaps, will be >0.0% (custom)
+
+MAPQ is calculated based on averaging `de` and `AS` relative to the best, max-scoring alignment.
+* Minimum of `0` and maximum of `60`
+* Formula: `30 * log_10(100.0 * (0.5 * (identity + (dp_score / top_dp_score))))`
+
+Column 2 and 7 are just the aligned length and the same as `nr`.
+
 ```bash
-TODO
+./target/release/rs-annotaligner \
+    -t test/data/input/target.bed \
+    -q test/data/input/query.bed \
+    -y paf \
+    -a global # Or `local`
 ```
+
+<table>
+    <tr>
+        <td>Target</td>
+        <td>Query</td>
+        <td>Output (Global)</td>
+        <td>Output (Local)</td>
+    </tr>
+    <tr>
+<td>
+
+```
+chr1	1	2	And
+chr1	2	3	Bow
+chr1	3	4	Cow
+chr1	4	5	Anger
+chr1	5	6	Anger
+chr1	10	11	Creek
+chr1	11	13	Bag
+chr1	13	15	Banana
+chr1	15	20	Aww
+```
+
+</td>
+<td>
+
+```
+chr1	1	2	And
+chr1	2	3	Bow
+chr1	3	4	Cow
+chr1	4	5	Zed
+chr1	5	6	Zed
+chr1	6	7	Creek
+chr1	7	8	Bag
+chr1	8	9	Bag
+```
+
+</td>
+<td>
+
+```
+chr1    8       1       9       +       chr1    19      1       20      6       15      55      cg:Z:3=2X3=2D5X nr:i:9  AS:i:2  NM:i:9  de:f:0.42857143 tg:f:0.21052632 qg:f:0
+```
+
+</td>
+
+<td>
+
+```
+chr1    7       1       8       +       chr1    12      1       13      6       8       58      cg:Z:3=2X3=     nr:i:7  AS:i:8  NM:i:2  de:f:0.75       tg:f:0.33333334 qg:f:0
+chr1    3       1       4       +       chr1    3       1       4       3       3       58      cg:Z:3= nr:i:3  AS:i:6  NM:i:0  de:f:1  tg:f:0  qg:f:0
+chr1    8       1       9       +       chr1    14      1       15      6       10      56      cg:Z:3=2X3=2X   nr:i:8  AS:i:7  NM:i:4  de:f:0.6        tg:f:0.2857143  qg:f:0
+chr1    6       1       7       +       chr1    10      1       11      4       6       55      cg:Z:3=2X1=     nr:i:6  AS:i:6  NM:i:2  de:f:0.6666667  tg:f:0.4        qg:f:0
+chr1    4       1       5       +       chr1    4       1       5       3       4       55      cg:Z:3=1X       nr:i:4  AS:i:5  NM:i:1  de:f:0.75       tg:f:0  qg:f:0
+...
+```
+
+</td>
+
+</table>
 
 ## Test
 
@@ -135,6 +224,6 @@ python test/annotaligner/annotaligner.py \
 ## TODO
 * [x] Gzip input
 * [x] Smith-Waterman
-* [ ] Output as PAF
+* [x] Output as PAF
 * [x] Output as BEDPE
 * [ ] Benchmarks

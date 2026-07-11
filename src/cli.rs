@@ -2,7 +2,10 @@ use clap::Parser;
 
 use std::{num::NonZeroUsize, path::PathBuf};
 
-use crate::{align::Mode, io::bed4::DEF_NAME_COL};
+use crate::{
+    align::Mode,
+    io::{OutputType, bed4::DEF_NAME_COL},
+};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -16,9 +19,13 @@ pub struct Cli {
     /// 1-based index for labels
     #[arg(short = 'c', long, default_value_t = DEF_NAME_COL)]
     pub label_col: NonZeroUsize,
-    /// Output BEDPE file.
+    /// Output file. If omitted, defaults to stdout.
     #[arg(short = 'o', long)]
     pub outfile: Option<PathBuf>,
+    /// Output file type.
+    /// Either BEDPE or PAF.
+    #[arg(short = 'y', long, default_value = "BEDPE")]
+    pub outfile_type: OutputType,
     /// Match score
     #[arg(short = 'm', long, default_value_t = 2.0)]
     pub score_match: f32,
@@ -35,4 +42,7 @@ pub struct Cli {
     /// Local only returns the highest scoring alignment.
     #[arg(short = 'a', long, default_value = "global")]
     pub mode: Mode,
+    /// Minimum alignment score. Only valid with local alignment.
+    #[arg(short = 's', long, default_value_t = 5.0)]
+    pub minimum_aln_score: f32,
 }

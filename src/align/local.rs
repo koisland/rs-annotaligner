@@ -1,5 +1,8 @@
+use ordered_float::OrderedFloat;
+
 use crate::{
-    align::TraceOp,
+    align::{CigarOp, TraceOp},
+    io::align::Alignment,
     io::{bed4::BED4, bedpe::BEDPE},
 };
 
@@ -10,7 +13,8 @@ pub fn smith_waterman_affine(
     score_mismatch: f32,
     score_gap_open: f32,
     score_gap_ext: f32,
-) -> Vec<BEDPE> {
+    min_aln_score: f32,
+) -> eyre::Result<Vec<Alignment>> {
     // https://informatika.stei.itb.ac.id/~rinaldi.munir/Stmik/2024-2025/Makalah2025/Makalah-IF2211-Strategi-Algoritma-2025%20(98).pdf
     // Adapted from https://github.com/varel183/Makalah_STIMA_13523008/blob/main/src/main.py
     let n = bed_target.len();
@@ -20,11 +24,11 @@ pub fn smith_waterman_affine(
     let mut X = vec![vec![0.0; m + 1]; n + 1];
     let mut Y = vec![vec![0.0; m + 1]; n + 1];
 
-    let mut max_pos: ((usize, usize), f32) = ((0, 0), 0.0);
     let match_mismatch_score = [score_mismatch, score_match];
+    let ops = [CigarOp::Mismatch, CigarOp::Match];
 
-    // TODO: Max heap of size n to store positions for traceback.
-
+    // Store positions that meet min DP score for traceback.
+    let mut positions: Vec<((usize, usize), OrderedFloat<f32>)> = Vec::new();
     for i in tqdm::tqdm(1..n + 1) {
         let target_i = &bed_target[i - 1];
         for j in 1..m + 1 {
@@ -61,108 +65,123 @@ pub fn smith_waterman_affine(
                 .max_by(|a, b| a.total_cmp(b))
                 .unwrap();
 
-            max_pos =
-                std::cmp::max_by(max_pos, ((i, j), current_score), |a, b| a.1.total_cmp(&b.1));
+            if current_score >= min_aln_score {
+                positions.push(((i, j), OrderedFloat::<f32>(current_score)));
+            }
         }
     }
 
-    let ((mut i, mut j), _score) = max_pos;
-    let score_m = M[i][j];
-    let score_x = X[i][j];
-    let score_y = Y[i][j];
-
-    let mut current_op = if score_m >= score_x && score_m >= score_y {
-        TraceOp::M
-    } else if score_x >= score_y {
-        TraceOp::X
-    } else {
-        TraceOp::Y
-    };
-
-    let mut alns: Vec<BEDPE> = Vec::with_capacity(std::cmp::max(n, m));
-    while i > 0 && j > 0 {
+    // Store alignments in binary heap.
+    let mut alignments: Vec<Alignment> = Vec::new();
+    for ((mut i, mut j), score) in positions.into_iter() {
         let score_m = M[i][j];
         let score_x = X[i][j];
         let score_y = Y[i][j];
-        let max_score = [score_m, score_x, score_y]
-            .into_iter()
-            .max_by(|a, b| a.total_cmp(b))
-            .unwrap();
+        let mut n_matches = 0;
+        let mut current_op = if score_m >= score_x && score_m >= score_y {
+            TraceOp::M
+        } else if score_x >= score_y {
+            TraceOp::X
+        } else {
+            TraceOp::Y
+        };
 
-        if max_score <= 0.0 {
-            break;
+        let mut records: Vec<BEDPE> = Vec::with_capacity(std::cmp::max(n, m));
+        while i > 0 && j > 0 {
+            let score_m = M[i][j];
+            let score_x = X[i][j];
+            let score_y = Y[i][j];
+            let max_score = [score_m, score_x, score_y]
+                .into_iter()
+                .max_by(|a, b| a.total_cmp(b))
+                .unwrap();
+
+            if max_score <= 0.0 {
+                break;
+            }
+
+            let target_i = &bed_target[i - 1];
+            let query_j = &bed_query[j - 1];
+            let is_equal = usize::from(target_i.name == query_j.name);
+            let sub_score = match_mismatch_score[is_equal];
+            let op = ops[is_equal];
+
+            match current_op {
+                TraceOp::M => {
+                    n_matches += 1;
+                    records.push(BEDPE {
+                        chrom_1: Some(target_i.chrom.to_owned()),
+                        chrom_1_st: Some(target_i.st),
+                        chrom_1_end: Some(target_i.end),
+                        chrom_1_name: Some(target_i.name.to_owned()),
+                        chrom_2: Some(query_j.chrom.to_owned()),
+                        chrom_2_st: Some(query_j.st),
+                        chrom_2_end: Some(query_j.end),
+                        chrom_2_name: Some(query_j.name.to_owned()),
+                        op,
+                    });
+                    let next_score_m = M[i - 1][j - 1];
+                    let next_score_x = X[i - 1][j - 1];
+                    if score_m == next_score_m + sub_score {
+                        current_op = TraceOp::M
+                    } else if score_m == next_score_x + sub_score {
+                        current_op = TraceOp::X
+                    } else {
+                        current_op = TraceOp::Y
+                    }
+                    i -= 1;
+                    j -= 1;
+                }
+                TraceOp::X => {
+                    records.push(BEDPE {
+                        chrom_1: Some(target_i.chrom.to_owned()),
+                        chrom_1_st: Some(target_i.st),
+                        chrom_1_end: Some(target_i.end),
+                        chrom_1_name: Some(target_i.name.to_owned()),
+                        chrom_2: None,
+                        chrom_2_st: None,
+                        chrom_2_end: None,
+                        chrom_2_name: None,
+                        op: CigarOp::Deletion,
+                    });
+                    let next_score_x = X[i - 1][j];
+                    if score_x == next_score_x + score_gap_open {
+                        current_op = TraceOp::M
+                    } else {
+                        current_op = TraceOp::X
+                    }
+                    i -= 1;
+                }
+                TraceOp::Y => {
+                    records.push(BEDPE {
+                        chrom_1: None,
+                        chrom_1_st: None,
+                        chrom_1_end: None,
+                        chrom_1_name: None,
+                        chrom_2: Some(query_j.chrom.to_owned()),
+                        chrom_2_st: Some(query_j.st),
+                        chrom_2_end: Some(query_j.end),
+                        chrom_2_name: Some(query_j.name.to_owned()),
+                        op: CigarOp::Insertion,
+                    });
+                    let next_score_y = Y[i][j - 1];
+                    if score_y == next_score_y + score_gap_open {
+                        current_op = TraceOp::M
+                    } else {
+                        current_op = TraceOp::Y
+                    }
+                    j -= 1;
+                }
+            }
         }
-
-        let target_i = &bed_target[i - 1];
-        let query_j = &bed_query[j - 1];
-        let sub_score = match_mismatch_score[usize::from(target_i.name == query_j.name)];
-
-        match current_op {
-            TraceOp::M => {
-                alns.push(BEDPE {
-                    chrom_1: Some(target_i.chrom.to_owned()),
-                    chrom_1_st: Some(target_i.st),
-                    chrom_1_end: Some(target_i.end),
-                    chrom_1_name: Some(target_i.name.to_owned()),
-                    chrom_2: Some(query_j.chrom.to_owned()),
-                    chrom_2_st: Some(query_j.st),
-                    chrom_2_end: Some(query_j.end),
-                    chrom_2_name: Some(query_j.name.to_owned()),
-                });
-                let next_score_m = M[i - 1][j - 1];
-                let next_score_x = X[i - 1][j - 1];
-                if score_m == next_score_m + sub_score {
-                    current_op = TraceOp::M
-                } else if score_m == next_score_x + sub_score {
-                    current_op = TraceOp::X
-                } else {
-                    current_op = TraceOp::Y
-                }
-                i -= 1;
-                j -= 1;
-            }
-            TraceOp::X => {
-                alns.push(BEDPE {
-                    chrom_1: Some(target_i.chrom.to_owned()),
-                    chrom_1_st: Some(target_i.st),
-                    chrom_1_end: Some(target_i.end),
-                    chrom_1_name: Some(target_i.name.to_owned()),
-                    chrom_2: None,
-                    chrom_2_st: None,
-                    chrom_2_end: None,
-                    chrom_2_name: None,
-                });
-                let next_score_x = X[i - 1][j];
-                if score_x == next_score_x + score_gap_open {
-                    current_op = TraceOp::M
-                } else {
-                    current_op = TraceOp::X
-                }
-                i -= 1;
-            }
-            TraceOp::Y => {
-                alns.push(BEDPE {
-                    chrom_1: None,
-                    chrom_1_st: None,
-                    chrom_1_end: None,
-                    chrom_1_name: None,
-                    chrom_2: Some(query_j.chrom.to_owned()),
-                    chrom_2_st: Some(query_j.st),
-                    chrom_2_end: Some(query_j.end),
-                    chrom_2_name: Some(query_j.name.to_owned()),
-                });
-                let next_score_y = Y[i][j - 1];
-                if score_y == next_score_y + score_gap_open {
-                    current_op = TraceOp::M
-                } else {
-                    current_op = TraceOp::Y
-                }
-                j -= 1;
-            }
+        // Don't add alignments with no matches
+        if n_matches == 0 {
+            continue;
         }
+        records.reverse();
+        alignments.push(Alignment::new(records, score)?);
     }
-    alns.reverse();
-    alns
+    Ok(alignments)
 }
 
 #[cfg(test)]
@@ -183,8 +202,11 @@ mod test {
         let rec_t = read_bed4(&t, None).unwrap();
         let rec_q = read_bed4(&q, None).unwrap();
 
-        let res = smith_waterman_affine(&rec_t, &rec_q, 2.0, -1.0, -4.0, -1.0);
+        let mut res = smith_waterman_affine(&rec_t, &rec_q, 2.0, -1.0, -4.0, -1.0, 1.0).unwrap();
+        // sort by score
+        res.sort();
+        let res = res.pop().unwrap();
         let exp_res = read_bedpe(&exp).unwrap();
-        assert_eq!(res, exp_res)
+        assert_eq!(res.records, exp_res.records)
     }
 }
