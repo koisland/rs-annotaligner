@@ -13,7 +13,7 @@ pub struct PAF(Vec<Alignment>);
 
 impl PAF {
     /// Create new PAF and calculate MAPQ.
-    /// 
+    ///
     /// Calculate as follows:
     /// `30 * log_10(100.0 * 0.5 * (identity + (dp_score / top_dp_score)))`
     /// * Equal weight given to DP score and gap-compressed identity.
@@ -60,7 +60,11 @@ mod test {
         align::local::smith_waterman_affine,
         io::{bed4::read_bed4, paf::PAF},
     };
-    use std::{fs::File, io::{BufRead, BufReader}, path::PathBuf};
+    use std::{
+        fs::File,
+        io::{BufRead, BufReader},
+        path::PathBuf,
+    };
 
     const INPUT_DIR: &str = "test/data/input";
     const EXP_DIR: &str = "test/data/output";

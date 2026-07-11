@@ -11,7 +11,8 @@ use itertools::Itertools;
 use ordered_float::OrderedFloat;
 
 use crate::{
-    align::CigarOp, io::{OutputType, bedpe::BEDPE, paf::PAF},
+    align::CigarOp,
+    io::{OutputType, bedpe::BEDPE, paf::PAF},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -262,7 +263,7 @@ pub fn write_alignments(
             for line in paf.as_str() {
                 writeln!(&mut writer, "{line}")?;
             }
-        },
+        }
         OutputType::BEDPE => {
             writeln!(&mut writer, "{}", BEDPE::header())?;
             for (i, aln) in alignments.into_iter().enumerate() {
