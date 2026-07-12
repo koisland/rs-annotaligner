@@ -6,26 +6,6 @@ pub mod global;
 pub mod local;
 
 #[derive(Debug, Clone, Copy)]
-pub enum Mode {
-    /// Global alignment via Needleman-Wunsch with affine gap penalties
-    Global,
-    /// Local alignment via Smith-Waterman with affine gap penalties
-    Local,
-}
-
-impl FromStr for Mode {
-    type Err = eyre::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_ascii_lowercase().as_str() {
-            "local" => Ok(Mode::Local),
-            "global" => Ok(Mode::Global),
-            _ => bail!("Invalid mode: {s}"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
 pub enum TraceOp {
     /// Match or mismatch at (i, j)
     M,

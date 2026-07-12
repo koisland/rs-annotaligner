@@ -1,15 +1,11 @@
-use clap::Parser;
+use clap::{Args, Parser, Subcommand};
 
 use std::{num::NonZeroUsize, path::PathBuf};
 
-use crate::{
-    align::Mode,
-    io::{OutputType, bed4::DEF_NAME_COL},
-};
+use crate::io::{OutputType, bed4::DEF_NAME_COL};
 
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-pub struct Cli {
+#[derive(Args, Debug)]
+pub struct CommonArgs {
     /// First BED file.
     #[arg(short = 't', long)]
     pub infile_target: PathBuf,
@@ -38,11 +34,29 @@ pub struct Cli {
     /// Gap-extension penalty
     #[arg(short = 'e', long, default_value_t = -1.0)]
     pub score_gap_ext: f32,
+}
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+pub struct Cli {
     /// Alignment mode. Either global or local.
-    /// Local only returns the highest scoring alignment.
-    #[arg(short = 'a', long, default_value = "global")]
-    pub mode: Mode,
-    /// Minimum alignment score. Only valid with local alignment.
-    #[arg(short = 's', long, default_value_t = 5.0)]
-    pub minimum_aln_score: f32,
+    #[command(subcommand)]
+    pub command: Commands,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum Commands {
+    /// Global alignment. Only returns the highest scoring alignment.
+    Global {
+        #[command(flatten)]
+        args: CommonArgs,
+    },
+    /// Local alignment. Returns multiple alignments
+    Local {
+        #[command(flatten)]
+        args: CommonArgs,
+        /// Minimum alignment score. Only valid with local alignment.
+        #[arg(short = 's', long, default_value_t = 5.0)]
+        minimum_aln_score: f32,
+    },
 }

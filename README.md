@@ -27,11 +27,11 @@ Global or local alignment with affine gap penalties.
 
 #### BEDPE
 ```bash
-./target/release/rs-annotaligner \
+./target/release/rs-annotaligner global \
     -t test/data/input/target.bed \
     -q test/data/input/query.bed \
-    -y bedpe \
-    -a global # Or `local`
+    -y bedpe
+# ./target/release/rs-annotaligner local
 ```
 
 <table>
@@ -131,11 +131,11 @@ MAPQ is calculated based on averaging `de` and `AS` relative to the best, max-sc
 Column 2 and 7 are just the aligned length and the same as `nr`.
 
 ```bash
-./target/release/rs-annotaligner \
+./target/release/rs-annotaligner global \
     -t test/data/input/target.bed \
     -q test/data/input/query.bed \
-    -y paf \
-    -a global # Or `local`
+    -y paf
+# ./target/release/rs-annotaligner global
 ```
 
 <table>
@@ -210,6 +210,7 @@ cargo test --release
 Chromosomal fusion of chr6 and chr7 in HG008-T.
 ```bash
 cargo run --release -- \
+    global \
     -t test/data/input/HG008-N_v6.3_chr7_hap2_57312660-64850688_stv.bed.gz \
     -q test/data/input/HG008-T_v3.2_chr6_chr7_chr11_hap2_60228206-67527215_stv.bed.gz
 ```
@@ -221,7 +222,7 @@ python test/annotaligner/annotaligner.py \
     test/data/input/HG008-T_v3.2_chr6_chr7_chr11_hap2_60228206-67527215_stv.bed.gz
 ```
 
-## TODO
+## TO-DO
 * [x] Gzip input
 * [x] Smith-Waterman
 * [x] Output as PAF
